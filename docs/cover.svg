@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#16233b"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="flow" gradientUnits="userSpaceOnUse" x1="150" y1="200" x2="150" y2="300">
+      <stop offset="0" stop-color="#f59e0b" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2dd4bf" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+
+  <!-- Left: text -->
+  <g font-family="Inter, 'Inter Display', DejaVu Sans, sans-serif">
+    <text x="80" y="200" font-size="22" font-weight="600" fill="#f59e0b" letter-spacing="4">OPEN SOURCE · MIT</text>
+    <text x="78" y="282" font-size="76" font-weight="800" fill="#f8fafc">FusionArchiver</text>
+    <text x="80" y="338" font-size="28" font-weight="500" fill="#cbd5e1">Bulk-export every Autodesk Fusion document.</text>
+    <text x="80" y="374" font-size="28" font-weight="500" fill="#cbd5e1">Latest version only. Yours sorted from imported.</text>
+
+    <g font-size="20" font-weight="600" fill="#e2e8f0">
+      <rect x="80" y="420" width="196" height="44" rx="22" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.15"/>
+      <text x="178" y="449" text-anchor="middle">f3d · STEP · PDF</text>
+      <rect x="290" y="420" width="196" height="44" rx="22" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.15"/>
+      <text x="388" y="449" text-anchor="middle">Stop &amp; resume</text>
+      <rect x="500" y="420" width="150" height="44" rx="22" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.15"/>
+      <text x="575" y="449" text-anchor="middle">Inventory</text>
+    </g>
+
+    <text x="80" y="548" font-family="DejaVu Sans Mono, monospace" font-size="19" fill="#94a3b8">tested on a 1,917-document hub</text>
+  </g>
+
+  <!-- Right: cloud stack of documents flowing into three folders -->
+  <g transform="translate(790,150)">
+    <!-- isometric stack (the hub) -->
+    <g>
+      <polygon points="80,120 150,160 150,190 80,150" fill="#1e293b"/>
+      <polygon points="220,120 150,160 150,190 220,150" fill="#273449"/>
+      <polygon points="80,120 150,80 220,120 150,160" fill="#334155"/>
+      <polygon points="80,80 150,120 150,150 80,110" fill="#1e293b"/>
+      <polygon points="220,80 150,120 150,150 220,110" fill="#273449"/>
+      <polygon points="80,80 150,40 220,80 150,120" fill="#3b4b63"/>
+      <polygon points="80,40 150,80 150,110 80,70" fill="#1e293b"/>
+      <polygon points="220,40 150,80 150,110 220,70" fill="#273449"/>
+      <polygon points="80,40 150,0 220,40 150,80" fill="#475569"/>
+      <!-- version ghosts collapsing to one -->
+      <g fill="none" stroke="#f59e0b" stroke-width="2">
+        <rect x="120" y="-70" width="60" height="44" rx="5" stroke-opacity="0.25" transform="translate(-24,-10)"/>
+        <rect x="120" y="-70" width="60" height="44" rx="5" stroke-opacity="0.5" transform="translate(-12,-5)"/>
+        <rect x="120" y="-70" width="60" height="44" rx="5" fill="#f59e0b" fill-opacity="0.15"/>
+      </g>
+      <text x="150" y="-42" text-anchor="middle" font-family="DejaVu Sans Mono, monospace" font-size="15" fill="#fbbf24">latest</text>
+    </g>
+
+    <!-- flows -->
+    <g fill="none" stroke="url(#flow)" stroke-width="3" stroke-linecap="round">
+      <path d="M150 200 C150 250, 0 250, 0 300"/>
+      <path d="M150 200 L150 300"/>
+      <path d="M150 200 C150 250, 300 250, 300 300"/>
+    </g>
+    <g fill="#2dd4bf">
+      <circle cx="0" cy="300" r="5"/>
+      <circle cx="150" cy="300" r="5"/>
+      <circle cx="300" cy="300" r="5"/>
+    </g>
+
+    <!-- folders -->
+    <g font-family="Inter, DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="middle">
+      <g transform="translate(-60,315)">
+        <path d="M0 10 h40 l10 10 h70 v70 h-120 z" fill="#2dd4bf" fill-opacity="0.18" stroke="#2dd4bf" stroke-width="2"/>
+        <text x="60" y="120" fill="#e2e8f0">Designs</text>
+      </g>
+      <g transform="translate(90,315)">
+        <path d="M0 10 h40 l10 10 h70 v70 h-120 z" fill="#94a3b8" fill-opacity="0.15" stroke="#94a3b8" stroke-width="2"/>
+        <text x="60" y="120" fill="#e2e8f0">Imported</text>
+      </g>
+      <g transform="translate(240,315)">
+        <path d="M0 10 h40 l10 10 h70 v70 h-120 z" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-width="2"/>
+        <text x="60" y="120" fill="#e2e8f0">Originals</text>
+      </g>
+    </g>
+  </g>
+</svg>

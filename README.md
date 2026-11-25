@@ -1,5 +1,7 @@
 # FusionArchiver
 
+![FusionArchiver: bulk-export every Autodesk Fusion document, latest version only, with your designs sorted from imported models](docs/cover.png)
+
 [![CI](https://github.com/marshallguillory86/fusion-archiver/actions/workflows/ci.yml/badge.svg)](https://github.com/marshallguillory86/fusion-archiver/actions/workflows/ci.yml)
 
 Bulk-export **every document in your Autodesk Fusion hub** to local files, **latest version only**, with your own designs sorted apart from the models you imported.
