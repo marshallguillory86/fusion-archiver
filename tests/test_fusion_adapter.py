@@ -1,6 +1,7 @@
 """Tests for the Fusion adapter using a stub `adsk` package (Fusion is not available in CI)."""
 import importlib
 import json
+import os
 import sys
 import types
 
@@ -48,33 +49,36 @@ def fa(monkeypatch):
 
 # ---- export dispatch ------------------------------------------------------
 class RecordingExportManager:
-    def __init__(self):
+    """Records create*Options calls; execute() writes the file the options name (like Fusion)."""
+
+    def __init__(self, results=None, write=True, append_ext=False):
         self.calls = []
+        self.results = list(results or [])
+        self.write = write
+        self.append_ext = append_ext
 
     def __getattr__(self, name):
         if name.startswith("create"):
             def factory(*args):
                 self.calls.append((name, args))
-                return (name, args)
+                path = next(a for a in args if isinstance(a, str))
+                return {"path": path, "name": name}
             return factory
         raise AttributeError(name)
 
     def execute(self, opts):
-        return True
+        if self.write:
+            path = opts["path"]
+            if self.append_ext:
+                path = path + ".f3d"
+            with open(path, "wb") as fh:
+                fh.write(b"PK")
+        return self.results.pop(0) if self.results else True
 
 
-class Occs:
-    def __init__(self, refs):
-        self._refs = refs
-        self.count = len(refs)
-
-    def item(self, i):
-        return types.SimpleNamespace(isReferencedComponent=self._refs[i])
-
-
-def _design(refs=()):
-    root = types.SimpleNamespace(allOccurrences=Occs(list(refs)))
-    return types.SimpleNamespace(exportManager=RecordingExportManager(), rootComponent=root)
+def _design(em=None):
+    root = types.SimpleNamespace(name="root")
+    return types.SimpleNamespace(exportManager=em or RecordingExportManager(), rootComponent=root)
 
 
 def _doc_with(design):
@@ -91,31 +95,51 @@ def _doc_with(design):
     ("stl", "createSTLExportOptions", 1),   # Fusion signature: (geometry, filename)
     ("3mf", "createC3MFExportOptions", 1),  # Fusion signature: (geometry, filename)
 ])
-def test_each_model_format_uses_right_fusion_call(fa, fmt, method, path_index):
+def test_each_model_format_uses_right_fusion_call(fa, tmp_path, fmt, method, path_index):
     design = _design()
-    doc = fa.FusionDoc(None, _doc_with(design))
-    written = doc.export(fmt, f"/out/x.{fmt}")
+    target = str(tmp_path / f"x.{fmt}")
+    written = fa.FusionDoc(None, _doc_with(design)).export(fmt, target)
     name, args = design.exportManager.calls[0]
     assert name == method
-    assert args[path_index] == f"/out/x.{fmt}"
+    assert args[path_index] == target
     assert args[1 - path_index] is design.rootComponent
-    assert written == f"/out/x.{fmt}"
+    assert written == target
 
 
-def test_every_offered_model_format_is_implemented(fa):
+def test_every_offered_model_format_is_implemented(fa, tmp_path):
     for fmt in core.MODEL_FORMATS:
-        fa.FusionDoc(None, _doc_with(_design())).export(fmt, f"/o.{fmt}")
+        fa.FusionDoc(None, _doc_with(_design())).export(fmt, str(tmp_path / f"o.{fmt}"))
 
 
-def test_f3d_with_external_refs_becomes_f3z(fa):
-    design = _design(refs=[False, True])
-    written = fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/asm.f3d")
-    assert written == "/out/asm.f3z"
+def test_archive_is_always_f3d(fa, tmp_path):
+    written = fa.FusionDoc(None, _doc_with(_design())).export("f3d", str(tmp_path / "asm.f3d"))
+    assert written.endswith("asm.f3d") and os.listdir(tmp_path) == ["asm.f3d"]
 
 
-def test_unknown_format_rejected(fa):
+def test_extension_appended_by_fusion_is_normalised(fa, tmp_path):
+    design = _design(RecordingExportManager(append_ext=True))
+    written = fa.FusionDoc(None, _doc_with(design)).export("f3d", str(tmp_path / "asm.f3d"))
+    assert os.listdir(tmp_path) == ["asm.f3d"] and written == str(tmp_path / "asm.f3d")
+
+
+def test_false_but_file_written_is_success_and_logged(fa, tmp_path):
+    logs = []
+    design = _design(RecordingExportManager(results=[False]))
+    written = fa.FusionDoc(None, _doc_with(design), logs.append).export("f3d", str(tmp_path / "rack.f3d"))
+    assert written == str(tmp_path / "rack.f3d")
+    assert any("returned False" in m for m in logs)
+
+
+@pytest.mark.parametrize("result", [True, False])
+def test_no_file_written_raises(fa, tmp_path, result):
+    design = _design(RecordingExportManager(results=[result], write=False))
+    with pytest.raises(RuntimeError, match="wrote no file"):
+        fa.FusionDoc(None, _doc_with(design)).export("step", str(tmp_path / "x.step"))
+
+
+def test_unknown_format_rejected(fa, tmp_path):
     with pytest.raises(ValueError):
-        fa.FusionDoc(None, _doc_with(_design())).export("dwg", "/o.dwg")
+        fa.FusionDoc(None, _doc_with(_design())).export("dwg", str(tmp_path / "o.dwg"))
 
 
 # ---- settings dialog ------------------------------------------------------
@@ -185,33 +209,3 @@ def test_load_settings_skips_corrupt_file(fa, tmp_path, monkeypatch):
     legacy.write_text(json.dumps({"model_formats": ["stl"]}))
     assert fa.load_settings().model_formats == ["stl"]
 
-
-class FailingFirstExportManager(RecordingExportManager):
-    def __init__(self, results):
-        super().__init__()
-        self.results = list(results)
-
-    def execute(self, opts):
-        return self.results.pop(0)
-
-
-def test_f3d_false_retries_as_f3z(fa):
-    design = _design()
-    design.exportManager = FailingFirstExportManager([False, True])
-    written = fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/rack.f3d")
-    assert written == "/out/rack.f3z"
-    assert [c[1][0] for c in design.exportManager.calls] == ["/out/rack.f3d", "/out/rack.f3z"]
-
-
-def test_f3d_and_f3z_both_false_raises(fa):
-    design = _design()
-    design.exportManager = FailingFirstExportManager([False, False])
-    with pytest.raises(RuntimeError, match="f3d and f3z"):
-        fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/rack.f3d")
-
-
-def test_detected_f3z_false_raises_without_retry(fa):
-    design = _design(refs=[True])
-    design.exportManager = FailingFirstExportManager([False])
-    with pytest.raises(RuntimeError, match="f3z export returned False"):
-        fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/asm.f3d")

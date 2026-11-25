@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-11-25
+### Fixed
+- Designs with external references were saved as `name.f3z.f3d`. Fusion's API always writes a standard `.f3d` archive and appended `.f3d` to the `.f3z` name it was given. They are now saved as `name.f3d`.
+- When Fusion's `execute()` returns False but has written a valid, non-empty file, the export is recorded as successful (with a log note) instead of partial. Seen on large assemblies.
+- An export that reports success but writes no file is now recorded as a failure.
+
+### Removed
+- The `.f3d` → `.f3z` retry from 1.1.1. It never produced a different file.
+
 ## [1.2.1] - 2026-11-25
 ### Fixed
 - Settings dialog: wider default size so the output path is readable, the Browse button no longer repeats its label, and the description is no longer cut off.

@@ -25,7 +25,7 @@ import tempfile
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 DESIGN_EXTS = frozenset({"f3d"})
 DRAWING_EXTS = frozenset({"f2d"})
@@ -46,7 +46,7 @@ CATEGORY_ORIGINAL = "original"
 MODEL_FORMATS = ("f3d", "step", "iges", "sat", "smt", "stl", "3mf")
 DRAWING_FORMATS = ("pdf",)
 FORMAT_LABELS = {
-    "f3d": "Fusion archive (.f3d / .f3z)",
+    "f3d": "Fusion archive (.f3d)",
     "step": "STEP (.step)",
     "iges": "IGES (.iges)",
     "sat": "ACIS (.sat)",
@@ -355,7 +355,7 @@ class OpenedDoc(Protocol):
     def evidence(self) -> Evidence: ...
 
     def export(self, fmt: str, path: str) -> Optional[str]:
-        """Export; return the path actually written (may differ, e.g. .f3z)."""
+        """Export; return the path actually written."""
         ...
 
     def close(self) -> None: ...

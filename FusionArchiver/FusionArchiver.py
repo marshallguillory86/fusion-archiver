@@ -82,10 +82,20 @@ class FusionDoc:
             ev.mesh_body_count += comp.meshBodies.count
         return ev
 
-    @staticmethod
-    def _has_external_refs(design):
-        occs = design.rootComponent.allOccurrences
-        return any(occs.item(i).isReferencedComponent for i in range(occs.count))
+    def _settle(self, ok, path, fmt):
+        """Return the file Fusion actually wrote, or raise.
+
+        Fusion appends its own extension to some archive exports (x.f3z -> x.f3z.f3d), and for some
+        assemblies execute() returns False even though a valid file was written.
+        """
+        written = path
+        if not os.path.isfile(written) and os.path.isfile(f"{path}.{fmt}"):
+            os.replace(f"{path}.{fmt}", path)
+        if os.path.isfile(written) and os.path.getsize(written) > 0:
+            if not ok:
+                self._log(f"  {fmt}: Fusion returned False but wrote {os.path.basename(written)}; keeping it")
+            return written
+        raise RuntimeError(f"{fmt} export returned {ok} and wrote no file")
 
     def export(self, fmt, path):
         if fmt == "pdf":
@@ -98,30 +108,16 @@ class FusionDoc:
             opts.openPDF = False
             opts.useLineWeights = True
             t1 = time.monotonic()
-            if not drawing.exportManager.execute(opts):
-                raise RuntimeError("PDF export returned False")
+            written = self._settle(drawing.exportManager.execute(opts), path, "pdf")
             self._log(f"  timing: PDF export {time.monotonic() - t1:.1f}s")
-            return path
+            return written
         design = self._design()
         if design is None:
             raise RuntimeError("not a design")
         em = design.exportManager
         root = design.rootComponent
         if fmt == "f3d":
-            if self._has_external_refs(design):
-                path = os.path.splitext(path)[0] + ".f3z"
             opts = em.createFusionArchiveExportOptions(path, root)
-            if em.execute(opts):
-                return path
-            if path.endswith(".f3z"):
-                raise RuntimeError("f3z export returned False")
-            # Some assemblies with references are not detected above; Fusion needs .f3z for them.
-            path = os.path.splitext(path)[0] + ".f3z"
-            self._log("  f3d export returned False; retrying as .f3z")
-            opts = em.createFusionArchiveExportOptions(path, root)
-            if not em.execute(opts):
-                raise RuntimeError("f3d and f3z export returned False")
-            return path
         elif fmt == "step":
             opts = em.createSTEPExportOptions(path, root)
         elif fmt == "iges":
@@ -136,9 +132,7 @@ class FusionDoc:
             opts = em.createC3MFExportOptions(root, path)
         else:
             raise ValueError(f"unsupported format {fmt}")
-        if not em.execute(opts):
-            raise RuntimeError(f"{fmt} export returned False")
-        return path
+        return self._settle(em.execute(opts), path, fmt)
 
     def close(self):
         self._doc.close(False)

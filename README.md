@@ -12,7 +12,7 @@ Fusion has no built-in "export everything." If your subscription is ending, you'
 
 ## Known limitations
 - **Drawings are slow.** In testing, a single drawing PDF took 15–25 minutes, while models take seconds each. Use *Defer drawings* to get every model out first.
-- **Some assemblies can't be archived.** Fusion refuses both `.f3d` and `.f3z` export for certain designs with external references. STEP still exports, and the inventory lists those designs as `partial`. Export them by hand with **File → Export**.
+- **Fusion sometimes reports a failed export that actually worked.** On some large assemblies, `execute()` returns False even though it wrote a valid file. FusionArchiver keeps the file and notes it in the log. Large archives use Zstandard compression, which Python's `zipfile` can't read before 3.14. That doesn't mean the file is corrupt.
 - **Fusion drawing templates** can't be downloaded through the API ("file type not available for download").
 - **Classification is a heuristic.** Review `Imported/` and adjust it with the *Always mine* / *Always imported* settings.
 
@@ -20,7 +20,7 @@ Fusion has no built-in "export everything." If your subscription is ending, you'
 
 | Document | Output | Folder |
 |---|---|---|
-| Your designs (`.f3d`) | Formats you choose: Fusion archive (`.f3d`, or `.f3z` when it references other designs), STEP, IGES, SAT, SMT, STL, 3MF | `Designs/<project>/<folders>/` |
+| Your designs (`.f3d`) | Formats you choose: Fusion archive (`.f3d`), STEP, IGES, SAT, SMT, STL, 3MF | `Designs/<project>/<folders>/` |
 | Imported models | Same formats | `Imported/<project>/<folders>/` (optional) |
 | Drawings (`.f2d`) | PDF | `Designs/<project>/<folders>/` |
 | Non-Fusion files (DXF, PDF, CAM/Nest templates, …) | Downloaded as-is | `Originals/<project>/<folders>/` (optional) |
