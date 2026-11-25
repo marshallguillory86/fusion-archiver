@@ -87,7 +87,7 @@ ruff check .
 bandit -q -r FusionArchiver
 ```
 
-CI runs all of the above on Linux, macOS and Windows with Python 3.9 and 3.12.
+CI runs all of the above on Linux, macOS and Windows with Python 3.10 and 3.12.
 
 ## License
 

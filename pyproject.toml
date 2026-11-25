@@ -4,7 +4,7 @@ version = "1.2.1"
 description = "Bulk-export the latest version of every Autodesk Fusion document, sorting your designs from imported models."
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
 pythonpath = ["FusionArchiver"]
@@ -12,7 +12,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "I", "UP", "S"]

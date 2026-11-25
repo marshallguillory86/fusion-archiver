@@ -8,6 +8,11 @@ import archiver_core as core
 from archiver_core import Config, ConfigError, Evidence, FileRef
 
 
+def P(*parts):
+    """Platform-native path, so path assertions hold on Windows too."""
+    return os.path.join(*parts)
+
+
 def ref(name="Part", ext="f3d", fid="urn:abc12345", project="P", parts=(), version=3):
     return FileRef(file_id=fid, project=project, folder_parts=tuple(parts), name=name,
                    extension=ext, version=version)
@@ -103,16 +108,17 @@ class TestPaths:
 
     def test_no_traversal(self):
         p = core.target_path("/out", ref(name="../../etc", parts=("..", "x")), core.CATEGORY_DESIGN, "f3d", False)
-        assert os.path.normpath(p).startswith("/out/Designs/P")
+        assert os.path.normpath(p).startswith(os.path.normpath(P("/out", "Designs", "P")))
+        assert ".." not in os.path.normpath(p).split(os.sep)
 
     def test_imported_root(self):
         p = core.target_path("/out", ref(parts=("Type D",)), core.CATEGORY_IMPORTED, "step", False)
-        assert p == "/out/Imported/P/Type D/Part.step"
+        assert p == P("/out", "Imported", "P", "Type D", "Part.step")
 
     def test_imported_not_separated(self):
         cfg = Config(separate_imported=False)
         p = core.target_path("/out", ref(), core.CATEGORY_IMPORTED, "step", False, cfg)
-        assert p == "/out/Designs/P/Part.step"
+        assert p == P("/out", "Designs", "P", "Part.step")
 
     def test_disambiguate(self):
         p = core.target_path("/out", ref(fid="urn:xyz:ABCDEFGH"), core.CATEGORY_DESIGN, "f3d", True)
@@ -205,17 +211,17 @@ class TestOriginals:
         assert core.kind_of(ref(ext="dxf")) == "other" and core.kind_of(ref(ext="dwg")) == "other"
 
     @pytest.mark.parametrize("name,ext,expected", [
-        ("OG Latch.dxf", "dxf", "/out/Originals/P/OG Latch.dxf"),
-        ("OG Latch", "dxf", "/out/Originals/P/OG Latch.dxf"),
-        ("Report.HTM", "htm", "/out/Originals/P/Report.htm"),
-        ("noext", "", "/out/Originals/P/noext"),
+        ("OG Latch.dxf", "dxf", "OG Latch.dxf"),
+        ("OG Latch", "dxf", "OG Latch.dxf"),
+        ("Report.HTM", "htm", "Report.htm"),
+        ("noext", "", "noext"),
     ])
     def test_original_path(self, name, ext, expected):
-        assert core.original_path("/out", ref(name=name, ext=ext), False) == expected
+        assert core.original_path("/out", ref(name=name, ext=ext), False) == P("/out", "Originals", "P", expected)
 
     def test_original_path_disambiguates_before_extension(self):
         p = core.original_path("/out", ref(name="a.dxf", ext="dxf", fid="urn:ABCDEFGH"), True)
-        assert p == "/out/Originals/P/a__ABCDEFGH.dxf"
+        assert p == P("/out", "Originals", "P", "a__ABCDEFGH.dxf")
 
     def test_originals_only_is_valid(self):
         Config(model_formats=[], drawing_formats=[], download_originals=True).validate(require_output=False)
