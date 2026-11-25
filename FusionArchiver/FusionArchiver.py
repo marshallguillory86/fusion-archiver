@@ -182,6 +182,11 @@ class FusionSource:
                 raise core.Cancelled()
             yield from self._walk(project_name, sub, parts + (sub.name,))
 
+    def download(self, ref, path):
+        if not ref.handle.download(path, None):
+            raise RuntimeError("DataFile.download returned False")
+        adsk.doEvents()
+
     def open(self, ref):
         df = ref.handle
         latest = getattr(df, "latestVersion", None) or df
@@ -218,6 +223,7 @@ def _read_dialog(inputs):
         drawing_formats=[f for f in core.DRAWING_FORMATS if val(f"fmt_{f}")],
         defer_drawings=val("defer_drawings"),
         separate_imported=val("separate_imported"),
+        download_originals=val("download_originals"),
         mine_patterns=core.split_lines(val("mine_patterns")),
         imported_patterns=core.split_lines(val("imported_patterns")),
         skip_projects=core.split_lines(val("skip_projects")),
@@ -257,6 +263,9 @@ class CreatedHandler(adsk.core.CommandCreatedEventHandler):
             s = opts.addBoolValueInput("separate_imported", "Put imported models in a separate Imported folder",
                                        True, "", cfg.separate_imported)
             s.tooltip = "Imported = uploaded CAD files, or designs with no sketches and no parametric history."
+            o = opts.addBoolValueInput("download_originals", "Download non-Fusion files as-is (DXF, PDF, templates...)",
+                                       True, "", cfg.download_originals)
+            o.tooltip = "Saved under Originals/. Fusion can download these files but cannot convert them."
 
             cls = inputs.addGroupCommandInput("grp_cls", "Classification and scope")
             cls.isExpanded = False
@@ -376,7 +385,8 @@ def _archive(cfg):
             f"FusionArchiver {core.VERSION}\n\n"
             f"Documents: {summary.total}\nExported OK: {summary.exported}\n"
             f"Already done (skipped): {summary.skipped_done}\n"
-            f"Non-design skipped: {summary.skipped_non_design}\n"
+            f"Non-Fusion files downloaded: {summary.originals}\n"
+            f"Non-Fusion files skipped: {summary.skipped_non_design}\n"
             f"Deferred: {summary.deferred}\n"
             f"Partial/failed: {summary.partial}\nOpen failed: {summary.failed_open}\n"
             f"By category: {summary.by_category}\n"

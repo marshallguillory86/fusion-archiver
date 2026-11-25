@@ -124,7 +124,7 @@ class TestConfig:
         c = Config()
         assert c.mine_patterns == [] and c.imported_patterns == [] and c.skip_projects == []
         assert c.model_formats == ["f3d", "step"] and c.drawing_formats == ["pdf"]
-        assert c.defer_drawings is False and c.separate_imported is True
+        assert c.defer_drawings is False and c.separate_imported is True and c.download_originals is True
 
     def test_missing_file_defaults(self, tmp_path):
         assert Config.load(str(tmp_path / "nope.json")) == Config()
@@ -151,7 +151,8 @@ class TestConfig:
         {"defer_drawings": "no"},
         {"model_formats": ["dwg"]},
         {"drawing_formats": ["dxf"]},
-        {"model_formats": [], "drawing_formats": []},
+        {"model_formats": [], "drawing_formats": [], "download_originals": False},
+        {"download_originals": "yes"},
         {"output_folder": 5},
         [],
     ])
@@ -197,3 +198,33 @@ class TestState:
         s = core.State(str(tmp_path / "state.json"))
         s.mark(ref(), "ok")
         assert os.listdir(tmp_path) == ["state.json"]
+
+
+class TestOriginals:
+    def test_dxf_is_other_not_model(self):
+        assert core.kind_of(ref(ext="dxf")) == "other" and core.kind_of(ref(ext="dwg")) == "other"
+
+    @pytest.mark.parametrize("name,ext,expected", [
+        ("OG Latch.dxf", "dxf", "/out/Originals/P/OG Latch.dxf"),
+        ("OG Latch", "dxf", "/out/Originals/P/OG Latch.dxf"),
+        ("Report.HTM", "htm", "/out/Originals/P/Report.htm"),
+        ("noext", "", "/out/Originals/P/noext"),
+    ])
+    def test_original_path(self, name, ext, expected):
+        assert core.original_path("/out", ref(name=name, ext=ext), False) == expected
+
+    def test_original_path_disambiguates_before_extension(self):
+        p = core.original_path("/out", ref(name="a.dxf", ext="dxf", fid="urn:ABCDEFGH"), True)
+        assert p == "/out/Originals/P/a__ABCDEFGH.dxf"
+
+    def test_originals_only_is_valid(self):
+        Config(model_formats=[], drawing_formats=[], download_originals=True).validate(require_output=False)
+
+    def test_legacy_ok_other_not_done_when_downloading(self, tmp_path):
+        s = core.State(str(tmp_path / "s.json"))
+        r = ref(ext="art")
+        s.mark(r, "ok")
+        assert not s.is_done(r, Config())
+        assert s.is_done(r, Config(download_originals=False))
+        s.mark(r, "ok", original=True)
+        assert s.is_done(r, Config())

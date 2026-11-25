@@ -15,7 +15,7 @@ Fusion has no built-in "export everything." If your subscription is ending, you'
 | Your designs (`.f3d`) | Formats you choose: Fusion archive (`.f3d`, or `.f3z` when it references other designs), STEP, IGES, SAT, SMT, STL, 3MF | `Designs/<project>/<folders>/` |
 | Imported models | Same formats | `Imported/<project>/<folders>/` (optional) |
 | Drawings (`.f2d`) | PDF | `Designs/<project>/<folders>/` |
-| Other files (CAM/Nest templates, etc.) | Not exported, listed in the inventory | — |
+| Non-Fusion files (DXF, PDF, CAM/Nest templates, …) | Downloaded as-is | `Originals/<project>/<folders>/` (optional) |
 
 - **Latest version only.** One open per document.
 - **Stop and resume.** Press **Stop** whenever you want. Run again with the same output folder and finished documents are skipped. Failed or partial exports are retried, and a document with a new version gets exported again.
@@ -37,6 +37,7 @@ Fusion has no built-in "export everything." If your subscription is ending, you'
 | Defer drawings | Off | Drawing export can be much slower than model export. Turn this on to export every model first, then run again with it off to do the drawings. |
 | Separate Imported folder | On | Off = everything goes under `Designs/`. Classification is still recorded in the inventory. |
 | Always mine / Always imported | empty | Name patterns separated by `;`, with `*` wildcards, e.g. `bracket_*; hull_v*`. Overrides the automatic classification. |
+| Download non-Fusion files | On | Downloads uploaded files that Fusion can't convert, unchanged. |
 | Skip projects | empty | Exact project names separated by `;`. |
 
 Settings are saved to `settings.json` next to the script.
@@ -61,6 +62,7 @@ These are heuristics. A design you drew in direct-modeling mode with no sketches
 <output>/
   Designs/<project>/<folders>/<name>.f3d | .step | .pdf ...
   Imported/<project>/<folders>/<name>.f3d | .step ...
+  Originals/<project>/<folders>/<name>.dxf | .pdf ...
   inventory.csv        one row per document (appended each run)
   state.json           resume state, keyed by document id + version
   log_<timestamp>.txt  one per run, includes settings and drawing timings

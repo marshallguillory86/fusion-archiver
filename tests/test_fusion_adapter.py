@@ -130,7 +130,7 @@ class FakeInputs:
 def _dialog_values(**overrides):
     values = {f"fmt_{f}": False for f in core.MODEL_FORMATS + core.DRAWING_FORMATS}
     values.update({"output_folder": " /Volumes/Drive/Archive ", "defer_drawings": True,
-                   "separate_imported": False, "mine_patterns": "hull_*; logo*",
+                   "separate_imported": False, "download_originals": True, "mine_patterns": "hull_*; logo*",
                    "imported_patterns": "", "skip_projects": "Old;Scratch"})
     values.update(overrides)
     return values
@@ -140,13 +140,30 @@ def test_read_dialog_builds_config(fa):
     cfg = fa._read_dialog(FakeInputs(_dialog_values(fmt_step=True, fmt_stl=True, fmt_pdf=True)))
     assert cfg == core.Config(output_folder="/Volumes/Drive/Archive", model_formats=["step", "stl"],
                               drawing_formats=["pdf"], defer_drawings=True, separate_imported=False,
+                              download_originals=True,
                               mine_patterns=["hull_*", "logo*"], imported_patterns=[],
                               skip_projects=["Old", "Scratch"])
 
 
-def test_read_dialog_no_formats_fails_validation(fa):
+def test_read_dialog_nothing_selected_fails_validation(fa):
     with pytest.raises(core.ConfigError):
-        fa._read_dialog(FakeInputs(_dialog_values())).validate()
+        fa._read_dialog(FakeInputs(_dialog_values(download_originals=False))).validate()
+
+
+def test_download_calls_datafile_download_synchronously(fa):
+    calls = []
+    handle = types.SimpleNamespace(download=lambda path, handler: calls.append((path, handler)) or True)
+    r = core.FileRef(file_id="x", project="P", folder_parts=(), name="a.dxf", extension="dxf", version=1,
+                     handle=handle)
+    fa.FusionSource(None, lambda m: None).download(r, "/out/a.dxf")
+    assert calls == [("/out/a.dxf", None)]
+
+
+def test_download_false_raises(fa):
+    handle = types.SimpleNamespace(download=lambda path, handler: False)
+    r = core.FileRef(file_id="x", project="P", folder_parts=(), name="a", extension="pdf", version=1, handle=handle)
+    with pytest.raises(RuntimeError):
+        fa.FusionSource(None, lambda m: None).download(r, "/out/a.pdf")
 
 
 def test_load_settings_prefers_settings_then_legacy(fa, tmp_path, monkeypatch):

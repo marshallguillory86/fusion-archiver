@@ -32,9 +32,18 @@ class FakeSource:
         self.items = items  # list of (FileRef, FakeDoc | Exception)
         self.opened = []
         self.closes = []
+        self.downloaded = []
+        self.fail_download = set()
 
     def iter_files(self):
         return [r for r, _ in self.items]
+
+    def download(self, ref, path):
+        self.downloaded.append(ref.name)
+        if ref.name in self.fail_download:
+            raise RuntimeError("Failed to download file.")
+        with open(path, "w") as fh:
+            fh.write("original")
 
     def open(self, ref):
         self.opened.append(ref.name)
@@ -76,9 +85,10 @@ def test_given_mixed_hub_when_run_then_designs_and_imported_separated(tmp_path):
     assert os.path.isfile(f"{out}/Designs/Proj/Folder/Drawer Drawing.pdf")
     assert "NestReport" not in src.opened
     r = rows(out)
-    assert r["NestReport"]["category"] == "skipped_non_design"
+    assert r["NestReport"]["category"] == "original"
+    assert os.path.isfile(f"{out}/Originals/Proj/Folder/NestReport.htm")
     assert r["94425A810_Screw"]["category"] == "imported"
-    assert s.exported == 4 and s.skipped_non_design == 1
+    assert s.exported == 4 and s.originals == 1
     assert len(src.closes) == 4  # every opened doc closed
 
 
@@ -222,5 +232,56 @@ def test_given_invalid_config_when_run_then_raises_before_writing(tmp_path):
 
     from archiver_core import ConfigError
     with pytest.raises(ConfigError):
-        run(FakeSource([]), str(tmp_path), Config(model_formats=[], drawing_formats=[]))
+        run(FakeSource([]), str(tmp_path), Config(model_formats=[], drawing_formats=[], download_originals=False))
     assert os.listdir(tmp_path) == []
+
+
+def test_given_uploaded_dxf_when_run_then_downloaded_not_opened(tmp_path):
+    out = str(tmp_path)
+    src = FakeSource([(R("OG Latch.dxf", ext="dxf"), FakeDoc(None))])
+    s = run(src, out, Config())
+    assert src.opened == [] and src.downloaded == ["OG Latch.dxf"] and s.originals == 1
+    assert os.listdir(f"{out}/Originals/Proj/Folder") == ["OG Latch.dxf"]
+
+
+def test_given_file_skipped_by_older_version_when_run_then_downloaded(tmp_path):
+    out = str(tmp_path)
+    ref = R("Template", ext="art")
+    from archiver_core import State
+    State(os.path.join(out, "state.json")).mark(ref, "ok")  # how <=1.1.1 recorded skipped files
+    src = FakeSource([(ref, FakeDoc(None))])
+    run(src, out, Config())
+    assert src.downloaded == ["Template"]
+    src2 = FakeSource([(ref, FakeDoc(None))])
+    s2 = run(src2, out, Config())
+    assert src2.downloaded == [] and s2.skipped_done == 1
+
+
+def test_given_download_off_when_run_then_skipped_and_retried_when_turned_on(tmp_path):
+    out = str(tmp_path)
+    items = [(R("Template", ext="art"), FakeDoc(None))]
+    src = FakeSource(items)
+    s = run(src, out, Config(download_originals=False))
+    assert src.downloaded == [] and s.skipped_non_design == 1
+    src2 = FakeSource(items)
+    run(src2, out, Config())
+    assert src2.downloaded == ["Template"]
+
+
+def test_given_download_fails_when_run_then_recorded_and_retried(tmp_path):
+    out = str(tmp_path)
+    items = [(R("geese", ext="pdf"), FakeDoc(None))]
+    src = FakeSource(items)
+    src.fail_download = {"geese"}
+    s = run(src, out, Config())
+    assert s.partial == 1 and rows(out)["geese"]["status"] == "failed"
+    src2 = FakeSource(items)
+    run(src2, out, Config())
+    assert src2.downloaded == ["geese"]
+
+
+def test_given_same_name_originals_when_run_then_no_overwrite(tmp_path):
+    out = str(tmp_path)
+    run(FakeSource([(R("Logo.dxf", ext="dxf", fid="urn:1111AAAA"), FakeDoc(None)),
+                    (R("Logo.dxf", ext="dxf", fid="urn:2222BBBB"), FakeDoc(None))]), out, Config())
+    assert sorted(os.listdir(f"{out}/Originals/Proj/Folder")) == ["Logo.dxf", "Logo__2222BBBB.dxf"]

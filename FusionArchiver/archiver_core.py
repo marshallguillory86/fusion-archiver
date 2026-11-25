@@ -8,7 +8,8 @@ Behaviour:
   * Models   -> the selected model formats (default .f3d + .step).
   * Drawings -> .pdf (optional, can be deferred to a later run).
   * Models classified as imported can go to a separate Imported/ tree.
-  * Non-design files are skipped but recorded in the inventory.
+  * Non-Fusion files (DXF, PDF, CAM templates, ...) are downloaded as-is
+    under Originals/ (optional), otherwise skipped but recorded.
   * Every document gets one inventory.csv row with the evidence used to
     classify it, so the classification can be reviewed and corrected.
   * Resumable: state.json records finished documents by id + version.
@@ -24,7 +25,7 @@ import tempfile
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 
 DESIGN_EXTS = frozenset({"f3d"})
 DRAWING_EXTS = frozenset({"f2d"})
@@ -32,13 +33,14 @@ DRAWING_EXTS = frozenset({"f2d"})
 IMPORT_EXTS = frozenset({
     "step", "stp", "iges", "igs", "sat", "smt", "stl", "obj", "3mf",
     "x_t", "x_b", "sldprt", "sldasm", "ipt", "iam", "prt", "catpart",
-    "dwg", "dxf", "skp", "fbx", "3dm", "f3z",
+    "skp", "fbx", "3dm", "f3z",
 })
 
 CATEGORY_DESIGN = "design"
 CATEGORY_DRAWING = "drawing"
 CATEGORY_IMPORTED = "imported"
 CATEGORY_SKIPPED = "skipped_non_design"
+CATEGORY_ORIGINAL = "original"
 
 # Order here is the order shown in the settings dialog.
 MODEL_FORMATS = ("f3d", "step", "iges", "sat", "smt", "stl", "3mf")
@@ -105,13 +107,14 @@ class Config:
     drawing_formats: List[str] = field(default_factory=lambda: ["pdf"])
     defer_drawings: bool = False
     separate_imported: bool = True
+    download_originals: bool = True
     mine_patterns: List[str] = field(default_factory=list)
     imported_patterns: List[str] = field(default_factory=list)
     skip_projects: List[str] = field(default_factory=list)
 
     _LIST_FIELDS = ("model_formats", "drawing_formats", "mine_patterns",
                     "imported_patterns", "skip_projects")
-    _BOOL_FIELDS = ("defer_drawings", "separate_imported")
+    _BOOL_FIELDS = ("defer_drawings", "separate_imported", "download_originals")
 
     @classmethod
     def from_dict(cls, raw: Dict[str, Any]) -> Config:
@@ -146,7 +149,7 @@ class Config:
         bad = [f for f in self.drawing_formats if f not in DRAWING_FORMATS]
         if bad:
             raise ConfigError(f"unknown drawing format(s): {', '.join(bad)}")
-        if not self.model_formats and not self.drawing_formats:
+        if not self.model_formats and not self.drawing_formats and not self.download_originals:
             raise ConfigError("select at least one export format")
         if require_output and not self.output_folder.strip():
             raise ConfigError("choose an output folder")
@@ -236,6 +239,18 @@ def target_dir(out_root: str, ref: FileRef, category: str, cfg: Optional[Config]
     return os.path.join(*parts)
 
 
+def original_path(out_root: str, ref: FileRef, disambiguate: bool) -> str:
+    """Where a non-Fusion file is downloaded: Originals/<project>/<folders>/<name>.<ext>."""
+    stem = sanitize(ref.name)
+    suffix = f".{ref.ext}" if ref.ext else ""
+    if suffix and stem.lower().endswith(suffix):
+        stem = stem[: -len(suffix)]
+    if disambiguate:
+        stem = f"{stem}__{sanitize(ref.file_id)[-8:]}"
+    parts = [out_root, "Originals", sanitize(ref.project)] + [sanitize(p) for p in ref.folder_parts]
+    return os.path.join(*parts, f"{stem}{suffix}")
+
+
 def target_path(out_root: str, ref: FileRef, category: str, fmt: str, disambiguate: bool,
                 cfg: Optional[Config] = None) -> str:
     stem = sanitize(ref.name)
@@ -274,17 +289,22 @@ class State:
             self.done = raw.get("done", {})
             self.owners = raw.get("owners", {})
 
-    def is_done(self, ref: FileRef) -> bool:
+    def is_done(self, ref: FileRef, cfg: Optional[Config] = None) -> bool:
         rec = self.done.get(ref.file_id)
-        return bool(rec) and rec.get("version") == ref.version and rec.get("status") == "ok"
+        if not rec or rec.get("version") != ref.version or rec.get("status") != "ok":
+            return False
+        # Files skipped by older versions were marked ok; download them now if asked to.
+        if cfg is not None and cfg.download_originals and kind_of(ref) == "other":
+            return bool(rec.get("original"))
+        return True
 
     def claim(self, stem_key: str, file_id: str) -> bool:
         """True if file_id owns stem_key (claims it if free)."""
         owner = self.owners.setdefault(stem_key, file_id)
         return owner == file_id
 
-    def mark(self, ref: FileRef, status: str) -> None:
-        self.done[ref.file_id] = {"version": ref.version, "status": status}
+    def mark(self, ref: FileRef, status: str, **extra: Any) -> None:
+        self.done[ref.file_id] = {"version": ref.version, "status": status, **extra}
         self.save()
 
     def save(self) -> None:
@@ -346,6 +366,10 @@ class Source(Protocol):
 
     def open(self, ref: FileRef) -> OpenedDoc: ...
 
+    def download(self, ref: FileRef, path: str) -> None:
+        """Download a non-Fusion file as-is to path; raise on failure."""
+        ...
+
 
 @dataclass
 class Summary:
@@ -353,6 +377,7 @@ class Summary:
     exported: int = 0
     skipped_done: int = 0
     skipped_non_design: int = 0
+    originals: int = 0
     partial: int = 0
     failed_open: int = 0
     deferred: int = 0
@@ -382,7 +407,7 @@ def run(source: Source, out_root: str, cfg: Config,
                 summary.cancelled = True
                 log("Cancelled by user")
                 break
-            if state.is_done(ref):
+            if state.is_done(ref, cfg):
                 summary.skipped_done += 1
                 continue
             _process(source, ref, out_root, cfg, state, inv, summary, log)
@@ -407,9 +432,12 @@ def _process(source, ref, out_root, cfg, state, inv, summary, log) -> None:
         summary.deferred += 1
         return
     if kind == "other":
+        if cfg.download_originals:
+            _download_original(source, ref, out_root, state, inv, summary, log)
+            return
         category, reason = classify(ref, None, cfg)
         inv.write(ref, category, reason, None, "skipped", [], [])
-        state.mark(ref, "ok")
+        state.mark(ref, "skipped")
         summary.skipped_non_design += 1
         return
 
@@ -460,3 +488,24 @@ def _process(source, ref, out_root, cfg, state, inv, summary, log) -> None:
         summary.partial += 1
     log(f"[{category}] {ref.project}/{'/'.join(ref.folder_parts)}/{ref.name} v{ref.version} -> {status}"
         + (f" ({'; '.join(errors)})" if errors else ""))
+
+
+def _download_original(source, ref, out_root, state, inv, summary, log) -> None:
+    stem_key = original_path(out_root, ref, False).lower()
+    disambiguate = not state.claim(stem_key, ref.file_id)
+    path = original_path(out_root, ref, disambiguate)
+    reason = f"non-Fusion file '.{ref.ext or '?'}', downloaded as-is"
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        source.download(ref, path)
+    except Exception as exc:  # noqa: BLE001 - record and continue
+        inv.write(ref, CATEGORY_ORIGINAL, reason, None, "failed", [], [f"download: {exc}"])
+        state.mark(ref, "failed")
+        summary.partial += 1
+        log(f"[original] {ref.project}/{'/'.join(ref.folder_parts)}/{ref.name} -> failed ({exc})")
+        return
+    inv.write(ref, CATEGORY_ORIGINAL, reason, None, "ok", [os.path.relpath(path, out_root)], [])
+    state.mark(ref, "ok", original=True)
+    summary.originals += 1
+    summary.by_category[CATEGORY_ORIGINAL] = summary.by_category.get(CATEGORY_ORIGINAL, 0) + 1
+    log(f"[original] {ref.project}/{'/'.join(ref.folder_parts)}/{ref.name} -> ok")
