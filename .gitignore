@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+# Per-user settings written by the dialog
+FusionArchiver/settings.json
+FusionArchiver/archiver_config.json
+dist/
+.coverage

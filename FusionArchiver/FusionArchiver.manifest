@@ -1,0 +1,11 @@
+{
+	"autodeskProduct": "Fusion",
+	"type": "script",
+	"author": "Marshall Guillory",
+	"description": {
+		"": "Bulk-export the latest version of every document in the active hub. Choose formats, sort your designs from imported models, stop and resume any time."
+	},
+	"version": "1.1.0",
+	"supportedOS": "windows|mac",
+	"editEnabled": true
+}
