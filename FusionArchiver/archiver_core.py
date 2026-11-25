@@ -25,7 +25,7 @@ import tempfile
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 DESIGN_EXTS = frozenset({"f3d"})
 DRAWING_EXTS = frozenset({"f2d"})

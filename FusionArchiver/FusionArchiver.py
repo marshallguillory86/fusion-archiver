@@ -240,16 +240,18 @@ class CreatedHandler(adsk.core.CommandCreatedEventHandler):
             cfg = load_settings()
             cmd = args.command
             cmd.okButtonText = "Start export"
-            cmd.setDialogMinimumSize(460, 560)
+            cmd.setDialogMinimumSize(560, 600)
+            cmd.setDialogInitialSize(640, 680)
             inputs = cmd.commandInputs
 
             inputs.addTextBoxCommandInput(
                 "about", "", f"<b>FusionArchiver {core.VERSION}</b><br>Exports the latest version of "
-                "every document in the active hub. Safe to stop and re-run.", 2, True)
+                "every document in the active hub. Safe to stop and re-run.", 3, True)
 
             out = inputs.addGroupCommandInput("grp_out", "Output").children
             out.addStringValueInput("output_folder", "Folder", cfg.output_folder)
-            out.addBoolValueInput("browse", "Browse...", False, "", False)
+            browse = out.addBoolValueInput("browse", " ", False, "", False)
+            browse.text = "Browse..."
 
             fmts = inputs.addGroupCommandInput("grp_fmt", "Formats").children
             for f in core.MODEL_FORMATS + core.DRAWING_FORMATS:

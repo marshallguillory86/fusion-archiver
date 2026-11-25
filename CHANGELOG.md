@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-11-25
+### Fixed
+- Settings dialog: wider default size so the output path is readable, the Browse button no longer repeats its label, and the description is no longer cut off.
+
 ## [1.2.0] - 2026-11-25
 ### Added
 - Non-Fusion files (DXF, PDF, CAM/Nest templates, etc.) are downloaded as-is to `Originals/` (setting: "Download non-Fusion files", on by default). Files that older versions skipped are picked up on the next run.

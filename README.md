@@ -4,9 +4,15 @@
 
 Bulk-export **every document in your Autodesk Fusion hub** to local files, **latest version only**, with your own designs sorted apart from the models you imported.
 
-Fusion has no built-in "export everything." If your subscription is ending, you're moving to another CAD package, or you just want a real offline backup, the only native option is opening and exporting files one at a time. Existing scripts open **every version** of every design and export each one, which can turn a few hundred designs into a multi-day job. FusionArchiver opens each document once.
+Fusion has no built-in "export everything." If your subscription is ending, you're moving to another CAD package, or you just want a real offline backup, the only native option is opening and exporting files one at a time. Some existing scripts open **every version** of every design and export each one, which can turn a few hundred designs into a multi-day job. FusionArchiver opens each document once.
 
-> **Status: beta.** The core logic is covered by automated tests in CI. The Fusion side is tested against a stub of the Fusion API, plus early runs against a real hub of about 1,900 documents. Please [open an issue](../../issues) if something fails on your hub.
+> **Status: beta.** Used to archive a real hub of 1,917 documents: 1,647 models exported, 115 non-Fusion files downloaded, and 8 files that Fusion itself would not open or export flagged for manual handling. The core logic is covered by automated tests in CI. The Fusion side is tested against a stub of the Fusion API. Please [open an issue](../../issues) if something fails on your hub.
+
+## Known limitations
+- **Drawings are slow.** In testing, a single drawing PDF took 15–25 minutes, while models take seconds each. Use *Defer drawings* to get every model out first.
+- **Some assemblies can't be archived.** Fusion refuses both `.f3d` and `.f3z` export for certain designs with external references. STEP still exports, and the inventory lists those designs as `partial`. Export them by hand with **File → Export**.
+- **Fusion drawing templates** can't be downloaded through the API ("file type not available for download").
+- **Classification is a heuristic.** Review `Imported/` and adjust it with the *Always mine* / *Always imported* settings.
 
 ## What it does
 
