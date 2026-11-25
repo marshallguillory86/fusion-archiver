@@ -111,6 +111,17 @@ class FusionDoc:
             if self._has_external_refs(design):
                 path = os.path.splitext(path)[0] + ".f3z"
             opts = em.createFusionArchiveExportOptions(path, root)
+            if em.execute(opts):
+                return path
+            if path.endswith(".f3z"):
+                raise RuntimeError("f3z export returned False")
+            # Some assemblies with references are not detected above; Fusion needs .f3z for them.
+            path = os.path.splitext(path)[0] + ".f3z"
+            self._log("  f3d export returned False; retrying as .f3z")
+            opts = em.createFusionArchiveExportOptions(path, root)
+            if not em.execute(opts):
+                raise RuntimeError("f3d and f3z export returned False")
+            return path
         elif fmt == "step":
             opts = em.createSTEPExportOptions(path, root)
         elif fmt == "iges":

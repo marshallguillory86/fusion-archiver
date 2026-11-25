@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-11-25
+### Fixed
+- When `.f3d` export returns False (assemblies that reference other designs and aren't detected), retry as `.f3z`.
+
 ## [1.1.0] - 2026-11-25
 ### Added
 - A settings dialog before every run: output folder, export formats (Fusion archive, STEP, IGES, SAT, SMT, STL, 3MF, drawing PDF), defer drawings, separate Imported folder, always-mine and always-imported patterns, and projects to skip. Settings are saved to `settings.json`.

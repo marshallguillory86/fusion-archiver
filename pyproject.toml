@@ -1,6 +1,6 @@
 [project]
 name = "fusion-archiver"
-version = "1.1.0"
+version = "1.1.1"
 description = "Bulk-export the latest version of every Autodesk Fusion document, sorting your designs from imported models."
 readme = "README.md"
 license = { file = "LICENSE" }

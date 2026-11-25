@@ -167,3 +167,34 @@ def test_load_settings_skips_corrupt_file(fa, tmp_path, monkeypatch):
     settings.write_text("{not json")
     legacy.write_text(json.dumps({"model_formats": ["stl"]}))
     assert fa.load_settings().model_formats == ["stl"]
+
+
+class FailingFirstExportManager(RecordingExportManager):
+    def __init__(self, results):
+        super().__init__()
+        self.results = list(results)
+
+    def execute(self, opts):
+        return self.results.pop(0)
+
+
+def test_f3d_false_retries_as_f3z(fa):
+    design = _design()
+    design.exportManager = FailingFirstExportManager([False, True])
+    written = fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/rack.f3d")
+    assert written == "/out/rack.f3z"
+    assert [c[1][0] for c in design.exportManager.calls] == ["/out/rack.f3d", "/out/rack.f3z"]
+
+
+def test_f3d_and_f3z_both_false_raises(fa):
+    design = _design()
+    design.exportManager = FailingFirstExportManager([False, False])
+    with pytest.raises(RuntimeError, match="f3d and f3z"):
+        fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/rack.f3d")
+
+
+def test_detected_f3z_false_raises_without_retry(fa):
+    design = _design(refs=[True])
+    design.exportManager = FailingFirstExportManager([False])
+    with pytest.raises(RuntimeError, match="f3z export returned False"):
+        fa.FusionDoc(None, _doc_with(design)).export("f3d", "/out/asm.f3d")
